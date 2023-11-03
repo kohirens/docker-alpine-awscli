@@ -62,16 +62,8 @@ jobs:
         - run:
             name: "Build container image and test"
             command: |
-              export ALPINE_VER=$(cat alpine-version.txt)
-              export GLIBC_VER=$(cat alpine-glibc-version.txt)
-              DH_IMG="${DH_IMG_REPO}:dev-<< pipeline.parameters.app_name >>"
-              echo "building ${DH_IMG}"
-              docker build --rm --no-cache \
-                -t "${DH_IMG}" \
-                --build-arg ALPINE_VER --build-arg GLIBC_VER \
-                --progress plain  .
-              docker run -it --rm --entrypoint=ls "${DH_IMG}" -la /usr/glibc-compat
-              docker run -it --rm "${DH_IMG}" --version
+              chmod +x ./.circleci/docker-image.sh
+              ./.circleci/docker-image.sh "dev"
 
     fetch-code:
       executor: go-get-latest
@@ -96,25 +88,8 @@ jobs:
         - run:
             name: Push Docker image
             command: |
-              export ALPINE_VER=$(cat alpine-version.txt)
-              export GLIBC_VER=$(cat alpine-glibc-version.txt)
-              export DH_IMAGE="${DH_IMG_REPO}:<< pipeline.parameters.app_name >>"
-              echo "${DH_PASS}" | docker login -u "${DH_USER}" --password-stdin
-              echo ""
-              echo ""
-              echo "Building ${DH_IMAGE}"
-              docker build --rm --no-cache \
-                  -t "${DH_IMG_REPO}:${ALPINE_VER}-${GLIBC_VER}" \
-                  --build-arg ALPINE_VER --build-arg GLIBC_VER \
-                  .
-              echo ""
-              echo ""
-              echo "Pushing ${DH_IMAGE}"
-              docker push "${DH_IMAGE}"
-              echo ""
-              echo ""
-              echo "Cleanup ${DH_IMAGE}"
-              docker rmi "${DH_IMAGE}"
+              chmod +x ./.circleci/docker-image.sh
+              ./.circleci/docker-image.sh "prod" -push 1
 
 workflows:
   quality-control: # Run on all branches and PRs except main|auto-*
