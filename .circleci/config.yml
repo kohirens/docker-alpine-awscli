@@ -12,6 +12,9 @@ parameters:
     default: kohirens-automation-dockerhub
     description: Secrets context
     type: string
+  app_name:
+    default: alpine-awscli
+    type: string
   ssh_finger:
     description: SSH fingerprint.
     type: string
@@ -39,7 +42,7 @@ executors:
     resource_class: small
 
 default-env-vars: &default-env-vars
-    DH_IMG_REPO: "kohirens/alpine-awscli"
+    DH_IMG_REPO: "kohirens/<< pipeline.parameters.app_name >>"
     DOCKER_BUILDKIT: 1
 
 filter-semantic-tag: &filter-semantic-tag
@@ -61,11 +64,11 @@ jobs:
             command: |
               export ALPINE_VER=$(cat alpine-version.txt)
               export GLIBC_VER=$(cat alpine-glibc-version.txt)
-              DH_IMG="${DH_IMG_REPO}:dev-${ALPINE_VER}-${GLIBC_VER}"
+              DH_IMG="${DH_IMG_REPO}:dev-<< pipeline.parameters.app_name >>"
               echo "building ${DH_IMG}"
               docker build --rm --no-cache \
                 -t "${DH_IMG}" \
-                --build-arg ALPINE_VER --build-arg GLIBC_VER --target "release" \
+                --build-arg ALPINE_VER --build-arg GLIBC_VER \
                 --progress plain  .
               docker run -it --rm "${DH_IMG}" ls -la /usr/glibc-compat
               docker run -it --rm "${DH_IMG}" aws --version
@@ -95,7 +98,7 @@ jobs:
             command: |
               export ALPINE_VER=$(cat alpine-version.txt)
               export GLIBC_VER=$(cat alpine-glibc-version.txt)
-              export DH_IMAGE="${DH_IMG_REPO}:${ALPINE_VER}-${GLIBC_VER}"
+              export DH_IMAGE="${DH_IMG_REPO}:<< pipeline.parameters.app_name >>"
               echo "${DH_PASS}" | docker login -u "${DH_USER}" --password-stdin
               echo ""
               echo ""
