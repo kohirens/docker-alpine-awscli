@@ -1,0 +1,188 @@
+version: 2.1
+
+orbs:
+  vr: kohirens/version-release@3.1.0
+
+parameters:
+  ctx_ci_cd:
+    default: kohirens-automation
+    description: Secrets context
+    type: string
+  ctx_dockerhub:
+    default: kohirens-automation-dockerhub
+    description: Secrets context
+    type: string
+  ssh_finger:
+    description: SSH fingerprint.
+    type: string
+    default: ""
+  triggered_flow:
+    default: "workflow-selector"
+    description: Workflow to be executed.
+    type: string
+
+# Anchors
+executors:
+  base:
+    docker: # see https://circleci.com/developer/images/image/cimg/base#how-this-image-works
+      - image: cimg/base:2023.04
+        auth:
+          username: ${DH_USER}
+          password: ${DH_PASS}
+    resource_class: small
+  go-get-latest:
+    docker: # see https://github.com/kohirens/go-get-latest
+      - image: kohirens/go-get-latest:0.4.1
+        auth:
+          username: ${DH_USER}
+          password: ${DH_PASS}
+    resource_class: small
+
+default-env-vars: &default-env-vars
+    DH_IMG_REPO: "kohirens/alpine-awscli"
+    DOCKER_BUILDKIT: 1
+
+filter-semantic-tag: &filter-semantic-tag
+  tags:
+    only: /^v?\d+\.\d+\.\d+$/
+  branches:
+    ignore: /.*/
+
+jobs:
+    build-n-test:
+      executor: base
+      environment:
+        NODE_VER: v20.2.0
+        NODE_DISTRO: linux-x64
+        NODE_HOME: /usr/local/lib/nodejs
+        <<: *default-env-vars
+      steps:
+        - attach_workspace: { at: "." }
+        - setup_remote_docker
+        - run:
+            name: "Build container image and test"
+            command: |
+              export ALPINE_VER=$(cat alpine-version.txt)
+              export GLIBC_VER=$(cat alpine-glibc-version.txt)
+              DH_IMG="${DH_IMG_REPO}:dev-${ALPINE_VER}-${GLIBC_VER}"
+              echo "building ${DH_IMG}"
+              docker build --rm --no-cache \
+                -t "${DH_IMG}" \
+                --build-arg ALPINE_VER --build-arg GLIBC_VER --target "release" \
+                --progress plain  .
+              docker run -it --rm "${DH_IMG}" ls -la /usr/glibc-compat
+              docker run -it --rm "${DH_IMG}" aws --version
+
+    fetch-code:
+      executor: go-get-latest
+      steps:
+        - checkout
+        - run:
+            name: "Get Alpine & Go latest versions"
+            command: |
+              go-get-latest alpine > alpine-version.txt
+              go-get-latest alpine-glibc > alpine-glibc-version.txt
+        - persist_to_workspace:
+            root: .
+            paths: [ ./* ]
+
+    publish-image:
+      executor: base
+      environment:
+        <<: *default-env-vars
+      steps:
+        - attach_workspace: { at: "." }
+        - setup_remote_docker
+        - run:
+            name: Push Docker image
+            command: |
+              export ALPINE_VER=$(cat alpine-version.txt)
+              export GLIBC_VER=$(cat alpine-glibc-version.txt)
+              export DH_IMAGE="${DH_IMG_REPO}:${ALPINE_VER}-${GLIBC_VER}"
+              echo "${DH_PASS}" | docker login -u "${DH_USER}" --password-stdin
+              echo ""
+              echo ""
+              echo "Building ${DH_IMAGE}"
+              docker build --rm --no-cache \
+                  -t "${DH_IMG_REPO}:${ALPINE_VER}-${GLIBC_VER}" \
+                  --build-arg ALPINE_VER --build-arg GLIBC_VER \
+                  --target "release" .
+              echo ""
+              echo ""
+              echo "Pushing ${DH_IMAGE}"
+              docker push "${DH_IMAGE}"
+              echo ""
+              echo ""
+              echo "Cleanup ${DH_IMAGE}"
+              docker rmi "${DH_IMAGE}"
+
+workflows:
+  quality-control: # Run on all branches and PRs except main|auto-*
+    jobs:
+      - fetch-code:
+          context:
+            - << pipeline.parameters.ctx_ci_cd >>
+            - << pipeline.parameters.ctx_dockerhub >>
+          filters: { branches: { ignore: /main|auto-update-changelog/ } }
+      - build-n-test:
+          context: << pipeline.parameters.ctx_ci_cd >>
+          requires: [ fetch-code ]
+  # Run on the trunk branch only and acts a controller as code is merged
+  # to help decide which workflow executes.
+  workflow-selector:
+    when:
+      and:
+        - equal: ["workflow-selector", << pipeline.parameters.triggered_flow >>]
+        - equal: [ main, << pipeline.git.branch >> ]
+    jobs:
+      - vr/workflow-selector:
+          context: << pipeline.parameters.ctx_ci_cd >>
+          ssh_finger: << pipeline.parameters.ssh_finger >>
+
+  publish-changelog:
+    when:
+      and:
+        - equal: ["publish-changelog", << pipeline.parameters.triggered_flow >>]
+    jobs:
+      - vr/publish-changelog:
+          context: << pipeline.parameters.ctx_ci_cd >>
+          ssh_finger: << pipeline.parameters.ssh_finger >>
+
+  publish-release-tag:
+    when:
+      and:
+        - equal: ["publish-release-tag", << pipeline.parameters.triggered_flow >>]
+    jobs:
+      - vr/tag-and-release:
+          context: << pipeline.parameters.ctx_ci_cd >>
+
+  on-tag-release:
+    jobs:
+      - fetch-code:
+          context:
+            - << pipeline.parameters.ctx_ci_cd >>
+            - << pipeline.parameters.ctx_dockerhub >>
+          filters:
+            <<: *filter-semantic-tag
+      - publish-image:
+          context: << pipeline.parameters.ctx_dockerhub >>
+          filters:
+            <<: *filter-semantic-tag
+          requires: [ fetch-code  ]
+
+  scheduled-weekly-check:
+    when:
+      and:
+        - equal: ["scheduled-weekly-check", << pipeline.parameters.triggered_flow >>]
+        - equal: [ main, << pipeline.git.branch >> ]
+    jobs:
+      - fetch-code:
+          context:
+            - << pipeline.parameters.ctx_ci_cd >>
+            - << pipeline.parameters.ctx_dockerhub >>
+      - build-n-test:
+          context: << pipeline.parameters.ctx_ci_cd >>
+          requires: [ fetch-code ]
+      - publish-image:
+          context: << pipeline.parameters.ctx_dockerhub >>
+          requires: [ build-n-test ]
