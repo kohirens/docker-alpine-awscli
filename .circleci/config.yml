@@ -15,7 +15,7 @@ parameters:
   ssh_finger:
     description: SSH fingerprint.
     type: string
-    default: ""
+    default: "a1:36:f2:d9:f0:77:e1:d3:0a:09:9a:3f:a4:30:96:6e"
   triggered_flow:
     default: "workflow-selector"
     description: Workflow to be executed.
