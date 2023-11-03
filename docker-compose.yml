@@ -7,7 +7,6 @@ services:
             args:
                 ALPINE_VER: "${ALPINE_VER}"
                 GLIBC_VER: "${GLIBC_VER}"
-                AWS_VER: "${AWS_VER}"
             dockerfile: "Dockerfile"
             context: "."
         tty: true
