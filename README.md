@@ -11,7 +11,7 @@ Testing is critical before taking your app to production.
 
 ## Status
 
-
+[![CircleCI](https://dl.circleci.com/status-badge/img/gh/kohirens/docker-alpine-awscli/tree/main.svg?style=svg)](https://dl.circleci.com/status-badge/redirect/gh/kohirens/docker-alpine-awscli/tree/main)
 
 ## Features
 
