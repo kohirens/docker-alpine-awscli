@@ -70,8 +70,8 @@ jobs:
                 -t "${DH_IMG}" \
                 --build-arg ALPINE_VER --build-arg GLIBC_VER \
                 --progress plain  .
-              docker run -it --rm "${DH_IMG}" ls -la /usr/glibc-compat
-              docker run -it --rm "${DH_IMG}" aws --version
+              docker run -it --rm --entrypoint=ls "${DH_IMG}" -la /usr/glibc-compat
+              docker run -it --rm "${DH_IMG}" --version
 
     fetch-code:
       executor: go-get-latest
