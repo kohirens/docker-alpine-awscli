@@ -106,7 +106,7 @@ jobs:
               docker build --rm --no-cache \
                   -t "${DH_IMG_REPO}:${ALPINE_VER}-${GLIBC_VER}" \
                   --build-arg ALPINE_VER --build-arg GLIBC_VER \
-                  --target "release" .
+                  .
               echo ""
               echo ""
               echo "Pushing ${DH_IMAGE}"
