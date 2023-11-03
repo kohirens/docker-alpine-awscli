@@ -52,9 +52,6 @@ jobs:
     build-n-test:
       executor: base
       environment:
-        NODE_VER: v20.2.0
-        NODE_DISTRO: linux-x64
-        NODE_HOME: /usr/local/lib/nodejs
         <<: *default-env-vars
       steps:
         - attach_workspace: { at: "." }
