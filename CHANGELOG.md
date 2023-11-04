@@ -2,6 +2,12 @@
 ## [Unreleased]
 
 
+<a name="0.1.3"></a>
+## [0.1.3] - 2023-11-04
+### Removed
+- AWS Installation Files
+
+
 <a name="0.1.2"></a>
 ## [0.1.2] - 2023-11-04
 ### Fixed
@@ -41,6 +47,7 @@
 - Cleaned Up Docker Compose Config
 
 
-[Unreleased]: https://github.com/kohirens/docker-alpine-awscli/compare/0.1.2...HEAD
+[Unreleased]: https://github.com/kohirens/docker-alpine-awscli/compare/0.1.3...HEAD
+[0.1.3]: https://github.com/kohirens/docker-alpine-awscli/compare/0.1.2...0.1.3
 [0.1.2]: https://github.com/kohirens/docker-alpine-awscli/compare/0.1.1...0.1.2
 [0.1.1]: https://github.com/kohirens/docker-alpine-awscli/compare/0.1.0...0.1.1
