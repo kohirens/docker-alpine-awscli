@@ -23,23 +23,24 @@ docker build --rm --no-cache \
 
 echo ""
 echo ""
-export AWS_VER_INFO="$(docker run -t --rm "${DH_IMG}" --version)"
-export AWS_VER="$(echo "${AWS_VER_INFO}" | sed -E "s|^aws-cli/([0-9.]+).*|\1|")"
-echo "AWS_VER=${AWS_VER}"
-docker tag "${DH_IMG}" "${DH_IMG_REPO}:${AWS_VER}"
+AWS_VER_INFO="$(docker run -t --rm "${DH_IMG}" --version)"
+AWS_VER="$(echo "${AWS_VER_INFO}" | sed -E "s|^aws-cli/([0-9.]+).*|\1|")"
+DH_REL_IMG="${DH_IMG_REPO}:${AWS_VER}"
+echo "DH_REL_IMG=${DH_REL_IMG}"
+docker tag "${DH_IMG}" "${DH_REL_IMG}"
 
 if [ "${do_push}" = "-push" ]; then
     echo ""
     echo ""
     echo "${DH_PASS}" | docker login -u "${DH_USER}" --password-stdin
-    echo "Pushing ${DH_IMG}:${AWS_VER}"
-    docker push "${DH_IMG}:${AWS_VER}"
+    echo "Pushing ${DH_REL_IMG}"
+    docker push "${DH_REL_IMG}"
 fi
 
 echo ""
 echo ""
-docker run -it --rm --entrypoint=ls "${DH_IMG_REPO}:${AWS_VER}" -la /usr/glibc-compat
-docker run -it --rm "${DH_IMG_REPO}:${AWS_VER}" --version
+docker run -it --rm --entrypoint=ls "${DH_REL_IMG}" -la /usr/glibc-compat
+docker run -it --rm "${DH_REL_IMG}" --version
 
 echo ""
 echo ""
@@ -48,6 +49,5 @@ if [ -n "${dbg}" ]; then
     docker images
 fi
 
-echo "Cleanup ${DH_IMG} ${DH_IMG}:${AWS_VER}"
-docker rmi "${DH_IMG}"
-docker rmi "${DH_IMG_REPO}:${AWS_VER}"
+echo "Cleanup ${DH_IMG} ${DH_REL_IMG}"
+docker rmi "${DH_IMG}" "${DH_REL_IMG}"
